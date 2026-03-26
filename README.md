@@ -1,36 +1,39 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# MediBill AI
 
-## Getting Started
+MediBill AI is a full-stack web application that helps users upload hospital bills, detect overcharging using government rate cards (CGHS & NPPA), and generate legal complaint reports.
 
-First, run the development server:
+## 🚀 Key Features
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- **AI-Powered OCR**: Extract text from medical bills instantly.
+- **Overcharge Detection**: Compare bill items with CGHS/NPPA benchmark data.
+- **Legal Complaint Generation**: Generate formal letters under the Consumer Protection Act 2019 using Gemini AI.
+- **PDF Analysis Reports**: Get a professional breakdown of your bill in PDF format.
+- **Premium Dashboard**: A modern, responsive UI built with Next.js and Tailwind CSS.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 📂 Project Structure
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- `/frontend`: Next.js (App Router) application.
+- `/backend`: FastAPI (Python) server.
+- `/database`: SQL schema and seed data.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## ⚙️ Setup Instructions
 
-## Learn More
+### Backend
+1. Go to `/backend`.
+2. Install dependencies: `pip install -r requirements.txt`.
+3. Set your environment variables (GEMINI_API_KEY, GOOGLE_APPLICATION_CREDENTIALS).
+4. Run: `uvicorn main:app --reload`.
 
-To learn more about Next.js, take a look at the following resources:
+### Frontend
+1. Go to the root folder.
+2. Install dependencies: `npm install`.
+3. Set your `NEXT_PUBLIC_API_URL`.
+4. Run: `npm run dev`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 🛠️ Tech Stack
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Frontend**: Next.js, Tailwind CSS, shadcn/ui.
+- **Backend**: FastAPI, SQLAlchemy, Pydantic.
+- **AI/OCR**: Google Vision API, Gemini Pro API.
+- **Database**: PostgreSQL.
+- **PDF**: ReportLab.

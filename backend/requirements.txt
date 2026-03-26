@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+sqlalchemy
+psycopg2-binary
+pydantic
+google-cloud-vision
+google-generativeai
+reportlab
+python-multipart
+fuzzywuzzy
+python-Levenshtein
+python-dotenv
