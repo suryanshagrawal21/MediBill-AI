@@ -4,7 +4,7 @@ from sqlalchemy import create_engine, text
 def init_db():
     try:
         # Connect to default postgres to create database
-        engine_default = create_engine("postgresql://postgres:postgres@localhost/postgres", isolation_level="AUTOCOMMIT")
+        engine_default = create_engine("postgresql://postgres:postgres@127.0.0.1/postgres", isolation_level="AUTOCOMMIT")
         with engine_default.connect() as conn:
             try:
                 conn.execute(text("CREATE DATABASE medibill_ai"))
@@ -17,7 +17,7 @@ def init_db():
 
     # Connect to medibill_ai and run SQL
     try:
-        engine = create_engine("postgresql://postgres:postgres@localhost/medibill_ai", isolation_level="AUTOCOMMIT")
+        engine = create_engine("postgresql://postgres:postgres@127.0.0.1/medibill_ai", isolation_level="AUTOCOMMIT")
         with engine.connect() as conn:
             with open('database/schema.sql', 'r') as f:
                 schema_sql = f.read()

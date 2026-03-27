@@ -7,11 +7,17 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { cn } from "@/lib/utils"
 
 export default function LetterPage() {
-  const currentDate = new Date().toLocaleDateString('en-IN', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric'
-  })
+  // Simulated extracted and parsed dynamic data
+  const dynamicData = {
+    patient_name: "Rahul Sharma",
+    hospital_name: "ABC Hospital",
+    bill_number: "B12345",
+    date: "12-03-2026",
+    overcharged_items: [
+      { item: "Paracetamol", charged: 85, benchmark: 2 },
+      { item: "ICU Charges", charged: 18000, benchmark: 11000 }
+    ]
+  }
 
   return (
     <div className="container mx-auto px-4 py-12 max-w-4xl min-h-[calc(100vh-8rem)]">
@@ -46,73 +52,52 @@ export default function LetterPage() {
           <div className="h-[60vh] overflow-y-auto p-8 sm:p-12 bg-white dark:bg-card document-scroll">
             <div className="max-w-3xl mx-auto font-serif text-[15px] leading-relaxed space-y-6 text-slate-800 dark:text-slate-300">
               
-              <div className="flex justify-between items-start mb-12">
-                <div>
-                  <p className="font-bold">From:</p>
-                  <p>John Doe</p>
-                  <p>123 Patient Lane, Apt 4B</p>
-                  <p>New Delhi, 110001</p>
-                  <p>patient.email@example.com</p>
-                </div>
-                <div className="text-right">
-                  <p className="font-bold">Date:</p>
-                  <p>{currentDate}</p>
-                </div>
-              </div>
-
               <div>
-                <p className="font-bold">To:</p>
-                <p>The Grievance Redressal Officer / Billing Administrator</p>
-                <p>Fortis Healthcare Limited</p>
-                <p>Okhla Road, New Delhi 110025</p>
+                <p>To,</p>
+                <p>The Medical Superintendent,</p>
+                <p className="font-bold">{dynamicData.hospital_name}</p>
               </div>
 
-              <div className="pt-4 pb-2 border-y border-dashed mt-6 mb-6">
+              <div className="pt-2 pb-2 border-y border-dashed mt-6 mb-6">
                 <p className="font-bold uppercase tracking-wide text-sm">
-                  Subject: Notice regarding exorbitant and unjustified billing for patient admission (IPD No. 849201)
+                  Subject: Complaint Regarding Inflated Medical Bill
                 </p>
               </div>
 
               <p>Dear Sir/Madam,</p>
 
               <p>
-                This letter is to formally dispute the charges levied in the final medical bill dated [Date of Bill], generated for the treatment of [Patient Name], who was admitted to your facility from [Date of Admission] to [Date of Discharge] under IPD number 849201.
+                I, <strong>{dynamicData.patient_name}</strong>, am writing to raise a concern regarding my medical bill (Bill No: <strong>{dynamicData.bill_number}</strong>) dated <strong>{dynamicData.date}</strong>.
               </p>
 
               <p>
-                Upon detailed scrutiny of the invoice alongside benchmark pricing standards mandated by the Central Government Health Scheme (CGHS) and the National Pharmaceutical Pricing Authority (NPPA), I have identified egregious overcharges totaling <strong>₹31,500</strong>. This represents a <strong>26% markup</strong> beyond the legally permissible or fair-market pricing for the procedures, consumables, and room rent documented.
+                Upon reviewing the bill, I found that the following items have been charged significantly higher than the government-approved rates:
               </p>
 
-              <p className="font-bold mt-6">Specifically, the following anomalies have been identified:</p>
-
               <ul className="list-disc pl-8 space-y-2 my-4">
-                <li><strong>Room Rent (Semi-Private):</strong> Billed at ₹6,000/day against standard caps of ₹3,500/day.</li>
-                <li><strong>Doctor Consultation:</strong> Overcharged by ₹1,200 beyond established reasonable & customary limits.</li>
-                <li><strong>Consumables/Medicines:</strong> Charged at non-MRP rates or inflated prices in violation of NPPA guidelines.</li>
-                <li><strong>Diagnostics (CBC & X-Ray):</strong> Charged 300% above CGHS empanelled rates for identical services.</li>
+                {dynamicData.overcharged_items.map((item, idx) => (
+                  <li key={idx}>
+                    <strong>{item.item}:</strong> Charged at ₹{item.charged} against a benchmark of ₹{item.benchmark}.
+                  </li>
+                ))}
               </ul>
 
               <p>
-                Charging patients arbitrarily inflated prices for life-saving medical care is not only unethical but constitutes an "unfair trade practice" under Section 2(47) of the Consumer Protection Act, 2019. It severely undermines patient trust.
+                These charges exceed the benchmarks defined under CGHS/NPPA guidelines.
               </p>
 
               <p>
-                I hereby request you to provide a revised and itemized bill reflecting fair constraints on the aforementioned overcharged items within <strong>seven (7) working days</strong> of receiving this notice. Furthermore, I request a detailed rationale for any variance from standard NPPA/CGHS thresholds.
+                I request a review of the bill and a refund of the excess amount charged.
               </p>
 
               <p>
-                Failure to rectify this billing discrepancy will compel me to escalate this matter to the relevant authorities, including the District Consumer Disputes Redressal Commission and the State Medical Council, seeking a refund of the excess amount along with compensation for the mental agony caused.
-              </p>
-
-              <p>
-                I look forward to a prompt and amicable resolution to this matter.
+                If no action is taken within 7 days, I will escalate this matter to the appropriate consumer authorities.
               </p>
 
               <div className="mt-12">
-                <p>Yours sincerely,</p>
+                <p>Sincerely,</p>
                 <div className="h-16 w-48 border-b-2 border-slate-300 dark:border-slate-600 mt-4 mb-2"></div>
-                <p className="font-bold">John Doe</p>
-                <p className="text-sm">Patient / Authorized Representative</p>
+                <p className="font-bold">{dynamicData.patient_name}</p>
               </div>
 
             </div>
