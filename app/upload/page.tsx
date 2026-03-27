@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import { useRouter } from "next/navigation"
-import { runMockAnalysis, ANALYSIS_STEPS, MOCK_ANALYSIS, type AnalysisResult, type PatientInfo, type BillItem } from "@/lib/mockData"
+import { runMockAnalysis, ANALYSIS_STEPS, getRandomMockAnalysis, type AnalysisResult, type PatientInfo, type BillItem } from "@/lib/mockData"
 import { generateReportHTML, generateLetterHTML, generateMailtoLink, downloadHtmlAsPdf } from "@/lib/pdfUtils"
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -188,7 +188,7 @@ export default function UploadPage() {
           description: "Gemini is at capacity. Showing you a sample analysis instead.",
           duration: 5000
         })
-        finalResult = MOCK_ANALYSIS
+        finalResult = getRandomMockAnalysis()
       }
 
       // Save to localStorage for the new results page
@@ -200,7 +200,7 @@ export default function UploadPage() {
     } catch (error) {
       console.error("[Analysis Error]", error)
       toast.error("Analysis Error", { description: "Falling back to Demo Mode..." })
-      localStorage.setItem("medibill_last_analysis", JSON.stringify(MOCK_ANALYSIS))
+      localStorage.setItem("medibill_last_analysis", JSON.stringify(getRandomMockAnalysis()))
       router.push("/results")
     }
   }

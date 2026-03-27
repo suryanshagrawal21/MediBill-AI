@@ -77,6 +77,46 @@ export const ANALYSIS_STEPS = [
   { id: 6, label: "Preparing legal letter...", delay: 600 },
 ]
 
+export function getRandomMockAnalysis(): AnalysisResult {
+  const hospitals = ["Fortis Hospital", "Apollo Hospital", "Max Super Speciality", "Medanta - The Medicity", "Sir Ganga Ram Hospital", "AIIMS"]
+  const patients = ["Rahul Sharma", "Priya Singh", "Amit Patel", "Sneha Rao", "Vikram Malhotra", "Anjali Gupta"]
+  const doctors = ["Dr. Mehta", "Dr. Khanna", "Dr. Reddy", "Dr. Joshi", "Dr. Verma"]
+  
+  const hospital = hospitals[Math.floor(Math.random() * hospitals.length)]
+  const patient = patients[Math.floor(Math.random() * patients.length)]
+  const doctor = doctors[Math.floor(Math.random() * doctors.length)]
+  const billNum = `BILL-2026-${Math.floor(Math.random() * 90000) + 10000}`
+  
+  // Randomize item amounts slightly
+  const randomizedItems = MOCK_ITEMS.map(it => {
+    const variation = 0.8 + (Math.random() * 0.4) // 80% to 120%
+    const charged = Math.round(it.charged * variation)
+    const benchmark = it.benchmark
+    const overcharge = Math.max(0, charged - benchmark)
+    return { ...it, charged, overcharge }
+  })
+
+  const totalCharged = randomizedItems.reduce((s, i) => s + i.charged, 0)
+  const totalOvercharge = randomizedItems.reduce((s, i) => s + i.overcharge, 0)
+
+  return {
+    patient: {
+      patient_name: patient,
+      hospital_name: hospital,
+      bill_number: billNum,
+      date: new Date().toLocaleDateString("en-IN"),
+      doctor_name: doctor,
+      ward: "General Ward, Room 202",
+    },
+    items: randomizedItems,
+    total_charged: totalCharged,
+    total_benchmark: totalCharged - totalOvercharge,
+    total_overcharge: totalOvercharge,
+    overcharge_percentage: Math.round((totalOvercharge / totalCharged) * 100),
+    status: totalOvercharge > 0 ? "overcharged" : "fair",
+  }
+}
+
 export async function runMockAnalysis(
   onStepChange: (step: number, label: string) => void
 ): Promise<AnalysisResult> {
@@ -85,5 +125,5 @@ export async function runMockAnalysis(
     onStepChange(i + 1, step.label)
     await new Promise(r => setTimeout(r, step.delay))
   }
-  return MOCK_ANALYSIS
+  return getRandomMockAnalysis()
 }
