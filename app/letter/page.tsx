@@ -3,10 +3,15 @@
 import Link from "next/link"
 import { useEffect, useState } from "react"
 import { motion } from "framer-motion"
-import { ArrowLeft, Download, Send, Scale, Printer, CheckCircle, Stethoscope, FileText, ShieldAlert } from "lucide-react"
+import { 
+  ArrowLeft, Download, Send, Scale, Printer, CheckCircle, 
+  Stethoscope, FileText, ShieldAlert 
+} from "lucide-react"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
+import { toast } from "sonner"
+import { generateLetterHTML, generateMailtoLink, downloadHtmlAsPdf } from "@/lib/pdfUtils"
 
 export default function LetterPage() {
   const [data, setData] = useState<any>(null)
@@ -21,6 +26,20 @@ export default function LetterPage() {
       }
     }
   }, [])
+
+  const handleEmail = () => {
+    if (!data) return
+    const link = generateMailtoLink(data)
+    window.location.href = link
+    toast.success("Opening email client...")
+  }
+
+  const handleSavePDF = () => {
+    if (!data) return
+    const html = generateLetterHTML(data)
+    downloadHtmlAsPdf(html, `Legal_Notice_${data.patient?.bill_number || "Draft"}.pdf`)
+    toast.success("Generating Legal Notice...")
+  }
 
   if (!data) {
     return (
@@ -65,7 +84,10 @@ export default function LetterPage() {
           <Button variant="outline" className="hidden sm:flex rounded-xl h-12 px-6 shadow-sm font-black uppercase tracking-widest border-2 border-black hover:bg-black hover:text-white transition-all" onClick={() => window.print()}>
             <Printer className="mr-2 h-4 w-4" /> Print
           </Button>
-          <Button className="bg-black text-white dark:bg-white dark:text-black rounded-xl h-12 px-8 font-black uppercase tracking-widest shadow-xl border-2 border-transparent hover:scale-105 transition-all">
+          <Button 
+            className="bg-black text-white dark:bg-white dark:text-black rounded-xl h-12 px-8 font-black uppercase tracking-widest shadow-xl border-2 border-transparent hover:scale-105 transition-all"
+            onClick={handleSavePDF}
+          >
             <Download className="mr-2 h-4 w-4" /> Save PDF
           </Button>
         </div>
@@ -156,10 +178,17 @@ export default function LetterPage() {
             </div>
           </CardContent>
           <CardFooter className="bg-neutral-50 dark:bg-black border-t border-black/20 p-8 sm:px-10 flex flex-col sm:flex-row justify-end gap-5">
-            <Button variant="outline" className="w-full sm:w-auto rounded-xl h-14 px-8 font-black uppercase tracking-widest border-2 border-black hover:bg-black hover:text-white transition-all shadow-md">
+            <Button 
+              variant="outline" 
+              className="w-full sm:w-auto rounded-xl h-14 px-8 font-black uppercase tracking-widest border-2 border-black hover:bg-black hover:text-white transition-all shadow-md"
+              onClick={handleEmail}
+            >
               <Send className="mr-2 h-5 w-5" /> Send to Hospital
             </Button>
-            <Button className="w-full sm:w-auto bg-black text-white dark:bg-white dark:text-black font-black uppercase tracking-widest rounded-xl h-14 px-10 shadow-xl border-2 border-transparent">
+            <Button 
+              className="w-full sm:w-auto bg-black text-white dark:bg-white dark:text-black font-black uppercase tracking-widest rounded-xl h-14 px-10 shadow-xl border-2 border-transparent"
+              onClick={() => window.print()}
+            >
               <Printer className="mr-2 h-5 w-5" /> Print Notice
             </Button>
           </CardFooter>
@@ -168,4 +197,3 @@ export default function LetterPage() {
     </div>
   )
 }
-

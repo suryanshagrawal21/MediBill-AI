@@ -6,12 +6,14 @@ import { motion, Variants } from "framer-motion"
 import { 
   AlertCircle, FileText, ArrowLeft, ArrowDownToLine, Receipt, 
   FileSearch, TrendingDown, Scale, Stethoscope, ShieldCheck,
-  AlertTriangle, CheckSquare
+  AlertTriangle, CheckSquare, Share2
 } from "lucide-react"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { cn } from "@/lib/utils"
+import { toast } from "sonner"
+import { generateReportHTML, downloadHtmlAsPdf } from "@/lib/pdfUtils"
 
 export default function ResultsPage() {
   const [data, setData] = useState<any>(null)
@@ -26,6 +28,26 @@ export default function ResultsPage() {
       }
     }
   }, [])
+
+  const handleDownload = () => {
+    if (!data) return
+    const html = generateReportHTML(data)
+    downloadHtmlAsPdf(html, `MediBill_Report_${data.patient?.bill_number || "Draft"}.pdf`)
+    toast.success("Generating Report...")
+  }
+
+  const handleShare = async () => {
+    if (!data) return
+    const text = `MediBill AI Analysis: I found ₹${data.total_overcharge.toLocaleString("en-IN")} overcharge in my medical bill at ${data.patient?.hospital_name}. Check your bills at MediBill AI!`
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: "MediBill AI Report", text, url: window.location.origin })
+      } catch (e) { /* user cancelled */ }
+    } else {
+      await navigator.clipboard.writeText(text)
+      toast.success("Report summary copied to clipboard!")
+    }
+  }
 
   if (!data) {
     return (
@@ -68,7 +90,7 @@ export default function ResultsPage() {
         <Link href="/upload" className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "rounded-full hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-all bg-white/50 dark:bg-black/20 backdrop-blur-sm border border-border/50 shadow-sm")}>
           <ArrowLeft className="h-5 w-5" />
         </Link>
-        <div>
+        <div className="flex-1">
           <div className="flex items-center gap-2 mb-1">
             <Stethoscope className="h-5 w-5 text-black dark:text-white" />
             <h1 className="text-3xl lg:text-4xl font-extrabold tracking-tight">Analysis Report</h1>
@@ -77,6 +99,14 @@ export default function ResultsPage() {
             <Receipt className="h-4 w-4" /> {data.file || "hospital_bill.pdf"}
           </p>
         </div>
+        <Button 
+          variant="outline" 
+          size="icon" 
+          className="rounded-full border-2 border-black/10 hover:border-black transition-all"
+          onClick={handleShare}
+        >
+          <Share2 className="h-4 w-4" />
+        </Button>
       </motion.div>
 
       <motion.div
@@ -216,7 +246,11 @@ export default function ResultsPage() {
         transition={{ delay: 0.8 }}
         className="flex flex-col sm:flex-row justify-between items-center gap-6 pt-4 mb-20"
       >
-        <Button variant="outline" className="w-full sm:w-auto rounded-xl h-14 px-8 font-black uppercase tracking-widest border-2 border-black hover:bg-black hover:text-white dark:border-white dark:hover:bg-white dark:hover:text-black transition-all shadow-md">
+        <Button 
+          variant="outline" 
+          className="w-full sm:w-auto rounded-xl h-14 px-8 font-black uppercase tracking-widest border-2 border-black hover:bg-black hover:text-white dark:border-white dark:hover:bg-white dark:hover:text-black transition-all shadow-md"
+          onClick={handleDownload}
+        >
           <ArrowDownToLine className="mr-2 h-5 w-5" /> Download PDF
         </Button>
         <Link 
