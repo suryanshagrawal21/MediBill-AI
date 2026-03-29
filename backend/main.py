@@ -90,16 +90,36 @@ BENCHMARK_MAP = {
     "blood transfusion": 1500,
 }
 
-def get_benchmark(item_name: str) -> float | None:
-    """Fuzzy lookup of CGHS benchmark based on item name."""
+def get_benchmark(db: Session, item_name: str) -> float | None:
+    """Fuzzy lookup of CGHS/NPPA benchmark from Postgres/DB first, then fallback to internal map."""
     name_lower = item_name.lower().strip()
-    # Exact match first
+    
+    # 1. Check Live Database connection first
+    if db:
+        try:
+            # Exact Match
+            exact_match = db.query(models.RateCard).filter(models.RateCard.item_name.ilike(name_lower)).first()
+            if exact_match:
+                return float(exact_match.benchmark_price)
+                
+            # Naive Fuzzy Match on long words
+            words = name_lower.split()
+            for w in words:
+                if len(w) >= 4:
+                    fuzzy = db.query(models.RateCard).filter(models.RateCard.item_name.ilike(f"%{w}%")).first()
+                    if fuzzy:
+                        return float(fuzzy.benchmark_price)
+        except Exception as e:
+            print(f"[DB Error] Benchmark lookup failed: {e}")
+
+    # 2. Fallback to hardcoded map if DB fails or misses
     if name_lower in BENCHMARK_MAP:
         return BENCHMARK_MAP[name_lower]
-    # Substring match
+        
     for key, val in BENCHMARK_MAP.items():
         if key in name_lower or name_lower in key:
             return val
+            
     return None
 
 
@@ -126,17 +146,56 @@ async def extract_bill(background_tasks: BackgroundTasks, file: UploadFile = Fil
             raise HTTPException(status_code=500, detail=f"Both Gemini and fallback OCR failed: {fallback_err}")
 
     # Validation of required fields
-    required_keys = {"patient_name", "hospital_name", "bill_number", "date", "doctor_name", "ward", "items"}
-    for key in required_keys:
-        if key not in bill_data:
-            bill_data[key] = "Unknown" if key != "items" else []
-
-    items = bill_data.get("items", [])
+    items = bill_data.get("items", bill_data.get("medicines", []))
     patient_name = bill_data.get("patient_name", "Unknown")
     hospital_name = bill_data.get("hospital_name", "Unknown")
 
     if not items and patient_name == "Unknown" and hospital_name == "Unknown":
         raise HTTPException(status_code=400, detail="Could not read the bill. Please upload a correct bill.")
+        
+    for item in items:
+        # Standardize name mapping
+        name_val = item.get("matched_name") or item.get("ocr_name") or item.get("name") or "Unknown Item"
+        item["name"] = name_val
+
+        # Standardize charged price
+        extracted_p = item.get("extracted_price") or item.get("price")
+        if extracted_p is not None and "charged_price" not in item:
+            price_val = str(extracted_p).replace(',', '').replace('Rs', '').replace('₹', '').strip()
+            try:
+                import re
+                p_num = re.sub(r'[^\d.]', '', price_val)
+                item["charged_price"] = float(p_num) if p_num else 0.0
+            except ValueError:
+                item["charged_price"] = 0.0
+                
+        # Standardize expected price (CGHS/NPPA)
+        ep_cghs = str(item.get("cghs_price", "")).strip()
+        ep_nppa = str(item.get("nppa_price", "")).strip()
+        ep_base = item.get("expected_price")
+        
+        ep_val = ep_cghs if ep_cghs and ep_cghs.lower() not in ["none", "null", ""] else ep_nppa
+        if not ep_val or ep_val.lower() in ["none", "null", ""]:
+            ep_val = ep_base
+            
+        if ep_val is not None and str(ep_val).lower() not in ["none", "null", ""]:
+            ep_val_str = str(ep_val).replace(',', '').replace('Rs', '').replace('₹', '').strip()
+            try:
+                import re
+                ep_num = re.sub(r'[^\d.]', '', ep_val_str)
+                item["expected_price"] = float(ep_num) if ep_num else None
+            except ValueError:
+                item["expected_price"] = None
+        else:
+            item["expected_price"] = None
+
+    bill_data["items"] = items
+    
+    # Map contact info
+    contact = bill_data.get("contact", {})
+    if contact:
+        if contact.get("email"): bill_data["emails"] = [contact["email"]]
+        if contact.get("phone"): bill_data["phones"] = [contact["phone"]]
 
     # ── Step 2: Enrich with CGHS benchmarks ──
     items = bill_data.get("items", [])
@@ -151,9 +210,19 @@ async def extract_bill(background_tasks: BackgroundTasks, file: UploadFile = Fil
         name = item.get("name", "Unknown Item")
         category = item.get("category", "Other")
 
-        benchmark = get_benchmark(name)
-        # If no benchmark found, use 60% of charged as a conservative estimate
-        benchmark_price = benchmark if benchmark is not None else round(charged * 0.6, 2)
+        gemini_expected = item.get("expected_price")
+        benchmark = get_benchmark(db, name)
+
+        # Prioritize AI's native expected_price over the internal map if available
+        if isinstance(gemini_expected, (int, float)) and gemini_expected > 0:
+            benchmark_price = float(gemini_expected)
+            benchmark_source = "AI (CGHS/NPPA Data)"
+        elif benchmark is not None:
+            benchmark_price = benchmark
+            benchmark_source = "CGHS Database"
+        else:
+            benchmark_price = round(charged * 0.6, 2)
+            benchmark_source = "Estimated (60% of charged)"
 
         line_charged = charged * qty
         line_benchmark = benchmark_price * qty
@@ -174,7 +243,7 @@ async def extract_bill(background_tasks: BackgroundTasks, file: UploadFile = Fil
             "quantity": qty,
             "unit_price": charged,
             "is_overcharged": is_overcharged,
-            "benchmark_source": "CGHS" if benchmark is not None else "Estimated (60% of charged)",
+            "benchmark_source": benchmark_source,
         })
 
     overcharge_percentage = round((total_overcharge / total_charged * 100), 1) if total_charged > 0 else 0.0
@@ -215,6 +284,8 @@ async def extract_bill(background_tasks: BackgroundTasks, file: UploadFile = Fil
             "date": bill_data.get("date", "Unknown"),
             "doctor_name": bill_data.get("doctor_name", "Unknown"),
             "ward": bill_data.get("ward", "Unknown"),
+            "emails": bill_data.get("emails", []),
+            "phones": bill_data.get("phones", []),
         },
         "items": enriched_items,
         "total_charged": round(total_charged, 2),

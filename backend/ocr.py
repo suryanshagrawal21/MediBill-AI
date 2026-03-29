@@ -29,30 +29,92 @@ def extract_bill_data_with_gemini(file_bytes: bytes, mime_type: str) -> dict:
     genai.configure(api_key=_get_gemini_key())
 
     MODEL_CANDIDATES = [
-        "gemini-2.0-flash-lite",
-        "gemini-2.0-flash",
-        "gemini-1.5-flash-latest",
+        "gemini-1.5-pro",
+        "gemini-1.5-flash",
+        "gemini-1.5-flash-latest"
     ]
 
-    prompt = """Extract medical bill data into JSON with the following fields:
+    prompt = """You are an advanced medical bill auditing AI integrated with a PostgreSQL database containing CGHS and NPPA medicine pricing data.
+
+Your task is to:
+1. Process OCR-extracted text from medical bills.
+2. Clean and correct OCR errors intelligently.
+3. Extract structured and validated data.
+4. Match extracted medicines with database entries.
+5. Compare prices and detect overpricing accurately.
+
+----------------------------------------
+STRICT RULES:
+
+1. ACCURACY FIRST:
+- Carefully analyze OCR text (it may be noisy or incorrect)
+- Correct spelling using contextual understanding (e.g., "Paracetmol" -> "Paracetamol")
+
+2. DATA EXTRACTION:
+Extract:
+- Patient Name
+- Hospital/Pharmacy Name
+- Date
+- Medicines (name, quantity, unit price, total price)
+- Total Bill Amount
+- Contact Info (phone/email)
+
+3. DATABASE MATCHING:
+- Match medicine names with PostgreSQL database
+- Use fuzzy matching logic if exact match fails
+- Prefer generic names over brand names
+- Return matched database record ID
+
+4. PRICE VALIDATION:
+- Fetch CGHS and NPPA prices from database
+- Compare with extracted price
+- Classify:
+    - "Normal" (<= 10% variation)
+    - "Slightly High" (10-30%)
+    - "Overpriced" (> 30%)
+
+5. ERROR HANDLING:
+- If confidence is low, mark:
+  "uncertain": true
+- Do not hallucinate missing values
+
+6. OUTPUT FORMAT (STRICT JSON):
 {
-  "patient_name": "Name",
-  "hospital_name": "Hospital",
-  "bill_number": "ID",
-  "date": "DD-MM-YYYY",
-  "doctor_name": "Doctor",
-  "ward": "Ward type",
-  "total_amount": 0.0,
-  "tax": 0.0,
-  "discount": 0.0,
-  "items": [{
-    "name": "Item",
-    "charged_price": 0.0,
-    "quantity": 1,
-    "category": "Diagnostics|Pharmacy|Surgery|Consultation|Room|ICU|Nursing|Radiology|Consumables|Transport|Other"
-  }]
+  "patient_name": "",
+  "hospital_name": "",
+  "date": "",
+  "medicines": [
+    {
+      "ocr_name": "",
+      "matched_name": "",
+      "database_id": "",
+      "quantity": "",
+      "extracted_price": "",
+      "cghs_price": "",
+      "nppa_price": "",
+      "price_status": "",
+      "confidence": ""
+    }
+  ],
+  "total_amount": "",
+  "contact": {
+    "phone": "",
+    "email": ""
+  }
 }
-Return ONLY JSON without any markdown formatting."
+
+7. ROBUSTNESS:
+- Handle broken lines, merged words, and OCR noise
+- Extract maximum correct information even if formatting is poor
+
+----------------------------------------
+
+You are both:
+- A medical billing auditor
+- A data validation engine
+- A fuzzy matching system
+
+Return ONLY JSON without any markdown formatting.
 """
 
     b64_data = base64.b64encode(file_bytes).decode("utf-8")
@@ -78,17 +140,13 @@ Return ONLY JSON without any markdown formatting."
             except Exception as e:
                 last_error = e
                 err_msg = str(e).lower()
-                print(f"[Gemini] {model_name} error: {err_msg[:50]}")
-                
-                # If rate limited, switch model immediately unless it's the first attempt on the first model
-                if "429" in err_msg or "quota" in err_msg:
-                    if i == 0 and attempt == 0:
-                        time.sleep(2) # very brief pause for the fastest model
-                        continue
-                    break # immediately try the next model candidate
-                raise
+                print(f"[Gemini] {model_name} error: {err_msg[:100]}")
+                time.sleep(1) # brief pause
+                break # break retry loop, move to next model candidate
 
-    raise RuntimeError(f"Extraction failed: {last_error}")
+    if last_error:
+        raise RuntimeError(f"Gemini Extraction failed after trying all models: {last_error}")
+    raise RuntimeError("Extraction failed: No models returned valid data.")
 
 
 def guess_mime_type(filename: str, content: bytes) -> str:
@@ -120,47 +178,107 @@ def guess_mime_type(filename: str, content: bytes) -> str:
 
 
 def fallback_ocr(file_bytes: bytes, mime_type: str) -> dict:
-    """Simple fallback OCR using pytesseract when Gemini fails.
-    Returns a minimal JSON structure with empty patient info and items list.
-    """
+    """Smart fallback OCR using pytesseract with accuracy optimizations and regex heuristics."""
+    # Handle paths automatically
+    tess_path = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+    if not os.path.exists(tess_path):
+        tess_path_86 = r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe"
+        if os.path.exists(tess_path_86):
+            tess_path = tess_path_86
+    pytesseract.pytesseract.tesseract_cmd = tess_path
+    
     try:
+        # Prioritize accuracy: PSM 6 for a uniform block of text
+        custom_config = r'--oem 3 --psm 6'
+
         if mime_type.startswith("image"):
             image = Image.open(io.BytesIO(file_bytes))
-            text = pytesseract.image_to_string(image)
+            # Enhance accuracy with grayscale
+            image = image.convert('L')
+            text = pytesseract.image_to_string(image, config=custom_config)
         elif mime_type == "application/pdf":
-            # For PDF, attempt to convert first page to image using pdf2image if available
             try:
                 from pdf2image import convert_from_bytes
-                pages = convert_from_bytes(file_bytes, first_page=1, last_page=1)
-                image = pages[0]
-                text = pytesseract.image_to_string(image)
+                # Prioritize accuracy: 300 DPI limits noise
+                pages = convert_from_bytes(file_bytes, dpi=300, first_page=1, last_page=1)
+                image = pages[0].convert('L')
+                text = pytesseract.image_to_string(image, config=custom_config)
             except Exception:
                 text = ""
         else:
             text = ""
-        # Very naive parsing: split lines, look for price patterns
+            
+        # 1. Contact Info
+        emails = re.findall(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+", text)
+        phones = re.findall(r"\b\d{10}\b", text)
+
+        # 2. Smart Patient/Hospital Extraction
+        patient_name = "Unknown"
+        hospital_name = "Unknown"
+        bill_number = "Unknown"
+        date = "Unknown"
+        
+        lines = [line.strip() for line in text.splitlines() if line.strip()]
+        if len(lines) > 0:
+            hospital_name = lines[0] # Usually the first line of the header
+            
+        name_match = re.search(r"(?i)(?:patient name|name|mr\.|mrs\.|ms\.|patient)[:\s-]+([A-Za-z\s]{3,30})", text)
+        if name_match:
+            patient_name = name_match.group(1).split('\n')[0].strip()
+            
+        date_match = re.search(r"\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b", text)
+        if date_match:
+            date = date_match.group(0)
+            
+        bill_match = re.search(r"(?i)(?:bill no|invoice no|receipt no|id)[:.\s-]+([\w\d]+)", text)
+        if bill_match:
+            bill_number = bill_match.group(1).strip()
+
+        # 3. Item Extraction with Categories
         items = []
-        for line in text.splitlines():
+        for line in lines:
             parts = line.split()
             if len(parts) >= 2:
-                # Assume last token is price
+                last_token = parts[-1].replace(',', '')
+                # Extract trailing decimal price
+                last_token = re.sub(r'[^\d.]', '', last_token)
                 try:
-                    price = float(parts[-1].replace(",", ""))
-                    name = " ".join(parts[:-1])
-                    items.append({"name": name, "charged_price": price, "quantity": 1, "category": "Other"})
+                    price = float(last_token)
+                    if 0 < price < 1000000:
+                        name = " ".join(parts[:-1]).strip()
+                        # Filter out garbage noise or totals
+                        if len(name) > 3 and not re.search(r"(?i)total|amount|balance|due|paid|net", name):
+                            # Analyze name to assign category intelligently
+                            category = "Other"
+                            if re.search(r"(?i)test|profile|scan|x-ray|mri|ct|usg|blood", name):
+                                category = "Diagnostics"
+                            elif re.search(r"(?i)tab|inj|syr|cap|iv|medicine|drop|saline", name):
+                                category = "Pharmacy"
+                            elif re.search(r"(?i)room|ward|icu|stay|bed", name):
+                                category = "Room Charges"
+                            elif re.search(r"(?i)consult|dr\.|doctor|visit|fee", name):
+                                category = "Consultation"
+                            elif re.search(r"(?i)surgery|operation|ot", name):
+                                category = "Surgery"
+                                
+                            items.append({"name": name, "charged_price": price, "quantity": 1, "category": category})
                 except ValueError:
                     continue
+
         return {
-            "patient_name": "",
-            "hospital_name": "",
-            "bill_number": "",
-            "date": "",
-            "doctor_name": "",
-            "ward": "",
-            "total_amount": 0,
-            "tax": 0,
-            "discount": 0,
+            "patient_name": patient_name,
+            "hospital_name": hospital_name,
+            "bill_number": bill_number,
+            "date": date,
+            "doctor_name": "Unknown",
+            "ward": "Unknown",
+            "total_amount": sum(i["charged_price"] for i in items),
+            "tax": 0.0,
+            "discount": 0.0,
             "items": items,
+            "emails": emails,
+            "phones": phones,
+            "raw_text": text
         }
     except Exception as e:
         raise RuntimeError(f"Fallback OCR failed: {e}")

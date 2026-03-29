@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import { useRouter } from "next/navigation"
-import { runMockAnalysis, ANALYSIS_STEPS, getRandomMockAnalysis, type AnalysisResult, type PatientInfo, type BillItem } from "@/lib/mockData"
+import { ANALYSIS_STEPS, type AnalysisResult, type PatientInfo, type BillItem } from "@/lib/mockData"
 import { generateReportHTML, generateLetterHTML, generateMailtoLink, downloadHtmlAsPdf } from "@/lib/pdfUtils"
 
 // ─────────────────────────────────────────────────────────────────────────────
