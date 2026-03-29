@@ -15,6 +15,11 @@ import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { generateReportHTML, downloadHtmlAsPdf } from "@/lib/pdfUtils"
 
+import { OverchargeAlert } from "@/components/OverchargeAlert"
+import { BillSummaryCard } from "@/components/BillSummaryCard"
+import { BreakdownTable } from "@/components/BreakdownTable"
+import { PriceChart } from "@/components/PriceChart"
+
 export default function ResultsPage() {
   const [data, setData] = useState<any>(null)
 
@@ -29,34 +34,21 @@ export default function ResultsPage() {
     }
   }, [])
 
-  const handleDownload = () => {
-    if (!data) return
-    const html = generateReportHTML(data)
-    downloadHtmlAsPdf(html, `MediBill_Report_${data.patient?.bill_number || "Draft"}.pdf`)
-    toast.success("Generating Report...")
-  }
-
-  const handleShare = async () => {
-    if (!data) return
-    const text = `MediBill AI Analysis: I found ₹${data.total_overcharge.toLocaleString("en-IN")} overcharge in my medical bill at ${data.patient?.hospital_name}. Check your bills at MediBill AI!`
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: "MediBill AI Report", text, url: window.location.origin })
-      } catch (e) { /* user cancelled */ }
-    } else {
-      await navigator.clipboard.writeText(text)
-      toast.success("Report summary copied to clipboard!")
-    }
-  }
-
   if (!data) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-        <Stethoscope className="h-12 w-12 text-muted-foreground animate-pulse" />
-        <p className="text-muted-foreground font-medium">No analysis data found. Please upload a bill first.</p>
-        <Link href="/upload" className={buttonVariants({ variant: "outline" })}>
-          Go to Upload
-        </Link>
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6 text-center">
+        <div className="h-20 w-20 rounded-3xl bg-primary/10 flex items-center justify-center animate-pulse">
+          <ShieldCheck className="h-10 w-10 text-primary" />
+        </div>
+        <div>
+          <h2 className="text-2xl font-black text-white mb-2">No Analysis Found</h2>
+          <p className="text-muted-foreground font-medium max-w-xs mx-auto mb-8">
+            Upload your medical bill to start the AI auditing process.
+          </p>
+          <Link href="/upload" className={cn(buttonVariants({ size: "lg" }), "rounded-2xl px-8 bg-primary hover:bg-primary/90 text-primary-foreground font-black shadow-lg shadow-primary/20 transition-all active:scale-95")}>
+            Audit Bill Now
+          </Link>
+        </div>
       </div>
     )
   }
@@ -65,203 +57,77 @@ export default function ResultsPage() {
   const totalCharged = data.total_charged || 0
   const totalOvercharge = data.total_overcharge || 0
   const overchargePercentage = data.overcharge_percentage || 0
-  const isFair = data.status === "fair"
-
-  const containerVariants: Variants = {
-    hidden: { opacity: 0 },
-    show: { opacity: 1, transition: { staggerChildren: 0.1 } }
-  }
-
-  const itemVariants: Variants = {
-    hidden: { opacity: 0, y: 20 },
-    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
-  }
+  const patient = data.patient || {}
 
   return (
-    <div className="container mx-auto px-4 py-8 lg:py-12 max-w-5xl relative min-h-[calc(100vh-8rem)]">
-      {/* Background Decor */}
-      <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-neutral-500/5 dark:bg-white/5 rounded-full blur-[120px] pointer-events-none -z-10" />
-
+    <div className="max-w-7xl mx-auto space-y-10 pb-20">
+      {/* Header */}
       <motion.div 
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
-        className="flex items-center gap-4 mb-10"
+        className="flex flex-col md:flex-row md:items-center justify-between gap-6"
       >
-        <Link href="/upload" className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "rounded-full hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-all bg-white/50 dark:bg-black/20 backdrop-blur-sm border border-border/50 shadow-sm")}>
-          <ArrowLeft className="h-5 w-5" />
-        </Link>
-        <div className="flex-1">
-          <div className="flex items-center gap-2 mb-1">
-            <Stethoscope className="h-5 w-5 text-black dark:text-white" />
-            <h1 className="text-3xl lg:text-4xl font-extrabold tracking-tight">Analysis Report</h1>
+        <div>
+          <div className="flex items-center gap-3 mb-2">
+            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary bg-primary/10 px-3 py-1 rounded-full border border-primary/20">AI Audit Complete</span>
           </div>
-          <p className="text-muted-foreground text-sm flex items-center gap-2 font-medium">
-            <Receipt className="h-4 w-4" /> {data.file || "hospital_bill.pdf"}
-          </p>
+          <h1 className="text-4xl lg:text-5xl font-black tracking-tighter text-white">Bill Analysis Dashboard</h1>
         </div>
-        <Button 
-          variant="outline" 
-          size="icon" 
-          className="rounded-full border-2 border-black/10 hover:border-black transition-all"
-          onClick={handleShare}
-        >
-          <Share2 className="h-4 w-4" />
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button variant="outline" className="rounded-xl border-white/10 hover:bg-white/5 font-bold h-12 px-6" onClick={() => window.print()}>
+            <ArrowDownToLine className="mr-2 h-4 w-4" /> Export PDF
+          </Button>
+          <Button className="rounded-xl bg-white text-black hover:bg-neutral-200 font-bold h-12 px-6 shadow-xl" onClick={() => toast.success("Sharing enabled soon!")}>
+            <Share2 className="mr-2 h-4 w-4" /> Share Report
+          </Button>
+        </div>
       </motion.div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 20, scale: 0.95 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ delay: 0.1, type: "spring", stiffness: 200, damping: 20 }}
-      >
-        <Alert 
-          variant={isFair ? "default" : "destructive"} 
-          className={cn(
-            "mb-10 border-2 backdrop-blur-md relative overflow-hidden shadow-xl py-6",
-            isFair 
-              ? "border-black bg-white dark:bg-neutral-900/50 text-black dark:text-white" 
-              : "border-black bg-neutral-50 dark:bg-black/40 text-black dark:text-white"
-          )}
-        >
-          <div className="absolute right-0 top-0 h-full w-2 bg-black dark:bg-white" />
-          {isFair ? (
-            <ShieldCheck className="h-8 w-8 !text-black dark:!text-white" />
-          ) : (
-            <AlertTriangle className="h-8 w-8 !text-black dark:!text-white" />
-          )}
-          <div className="ml-4">
-            <AlertTitle className="text-xl font-black uppercase tracking-tight mb-2">
-              {isFair ? "Fair Pricing Detected" : "Overcharge Detected"}
-            </AlertTitle>
-            <AlertDescription className="text-lg mt-2 leading-relaxed font-medium">
-              {isFair 
-                ? "Our analysis shows your bill is consistent with standard medical benchmarks. No significant overcharging was found."
-                : <>Our AI analysis indicates you were overcharged by <span className="font-black underline underline-offset-4 text-2xl tracking-tighter">₹{totalOvercharge.toLocaleString("en-IN")}</span> ({overchargePercentage}% above standard rates).</>
-              }
-            </AlertDescription>
-          </div>
-        </Alert>
-      </motion.div>
+      {/* Hero Section: Alert + Summary */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 space-y-8">
+          <OverchargeAlert amount={totalOvercharge} percentage={overchargePercentage} />
+          <BillSummaryCard patient={patient} />
+        </div>
+        <PriceChart billed={totalCharged} benchmark={totalCharged - totalOvercharge} />
+      </div>
 
+      {/* Price Breakdown Table */}
       <motion.div 
-        variants={containerVariants}
-        initial="hidden"
-        animate="show"
-        className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10"
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="space-y-6"
       >
-        <motion.div variants={itemVariants}>
-          <Card className="shadow-md hover:shadow-lg transition-all border-2 border-black/10 dark:border-white/10 dark:bg-neutral-900/40">
-            <CardHeader className="pb-2">
-              <CardDescription className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Total Billed</CardDescription>
-              <CardTitle className="text-3xl font-black tracking-tight">₹{totalCharged.toLocaleString("en-IN")}</CardTitle>
-            </CardHeader>
-          </Card>
-        </motion.div>
-        
-        <motion.div variants={itemVariants}>
-          <Card className="shadow-md hover:shadow-lg transition-all border-2 border-black/10 dark:border-white/10 dark:bg-neutral-900/40">
-            <CardHeader className="pb-2">
-              <CardDescription className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-                <Scale className="h-3.5 w-3.5" /> Fair Marker Price
-              </CardDescription>
-              <CardTitle className="text-3xl font-black tracking-tight">₹{(totalCharged - totalOvercharge).toLocaleString("en-IN")}</CardTitle>
-            </CardHeader>
-          </Card>
-        </motion.div>
-        
-        <motion.div variants={itemVariants}>
-          <Card className="shadow-xl border-2 border-black bg-black text-white dark:bg-white dark:text-black relative overflow-hidden group">
-            <CardHeader className="pb-2 relative z-10">
-              <CardDescription className="text-xs font-bold uppercase tracking-widest text-neutral-400 dark:text-neutral-500 flex items-center gap-1.5">
-                <TrendingDown className="h-3.5 w-3.5" /> Potential Savings
-              </CardDescription>
-              <CardTitle className="text-4xl font-black tracking-tighter">₹{totalOvercharge.toLocaleString("en-IN")}</CardTitle>
-            </CardHeader>
-          </Card>
-        </motion.div>
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-black text-white flex items-center gap-3">
+            <Receipt className="h-6 w-6 text-primary" />
+            Itemized Audit Breakdown
+          </h2>
+          <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">{items.length} Items Found</span>
+        </div>
+        <BreakdownTable items={items} />
       </motion.div>
 
+      {/* Legal Footer CTA */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
+        initial={{ opacity: 0, scale: 0.98 }}
+        animate={{ opacity: 1, scale: 1 }}
         transition={{ delay: 0.4 }}
+        className="glass-card p-10 rounded-[3rem] border-primary/20 bg-gradient-to-r from-primary/5 via-transparent to-secondary/5 text-center"
       >
-        <Card className="mb-10 shadow-lg border-2 border-black/20 dark:border-white/10 bg-white/60 dark:bg-neutral-900/60 backdrop-blur-xl overflow-hidden rounded-3xl">
-          <CardHeader className="bg-neutral-50/50 dark:bg-black/20 border-b border-border/50 py-5">
-            <CardTitle className="text-xl flex items-center gap-2 font-black tracking-tight uppercase">
-              <FileSearch className="h-5 w-5" /> Itemized Report
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left border-collapse">
-                <thead className="text-[10px] uppercase bg-black text-white dark:bg-white dark:text-black font-black tracking-[0.2em]">
-                  <tr>
-                    <th scope="col" className="px-6 py-5">Description</th>
-                    <th scope="col" className="px-6 py-5 text-right">Charged</th>
-                    <th scope="col" className="px-6 py-5 text-right">Standard</th>
-                    <th scope="col" className="px-6 py-5 text-right">Result</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-black/10 dark:divide-white/10">
-                  {items.map((row: any, index: number) => (
-                    <motion.tr 
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.5 + index * 0.05 }}
-                      key={index} 
-                      className="hover:bg-neutral-50 dark:hover:bg-white/5 transition-colors"
-                    >
-                      <td className="px-6 py-5 font-bold text-foreground">
-                        <div className="flex flex-col">
-                          <span>{row.item}</span>
-                          <span className="text-[10px] uppercase text-muted-foreground font-medium mt-0.5">{row.category}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-5 text-right font-black">₹{row.charged.toLocaleString("en-IN")}</td>
-                      <td className="px-6 py-5 text-right text-muted-foreground font-bold">₹{row.benchmark.toLocaleString("en-IN")}</td>
-                      <td className="px-6 py-5 text-right">
-                        {row.overcharge > 0 ? (
-                          <span className="inline-flex items-center px-3 py-1 rounded-md text-[10px] font-black bg-black text-white dark:bg-white dark:text-black border border-black shadow-sm">
-                            OVERCHARGE (₹{row.overcharge.toLocaleString("en-IN")})
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center px-3 py-1 rounded-md text-[10px] font-black border border-neutral-300 dark:border-neutral-700 text-muted-foreground">
-                            FAIR PRICE
-                          </span>
-                        )}
-                      </td>
-                    </motion.tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
-
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.8 }}
-        className="flex flex-col sm:flex-row justify-between items-center gap-6 pt-4 mb-20"
-      >
-        <Button 
-          variant="outline" 
-          className="w-full sm:w-auto rounded-xl h-14 px-8 font-black uppercase tracking-widest border-2 border-black hover:bg-black hover:text-white dark:border-white dark:hover:bg-white dark:hover:text-black transition-all shadow-md"
-          onClick={handleDownload}
-        >
-          <ArrowDownToLine className="mr-2 h-5 w-5" /> Download PDF
-        </Button>
-        <Link 
-          href="/letter" 
-          className={cn(
-            buttonVariants({ size: "lg" }),
-            "w-full sm:w-auto bg-black hover:bg-neutral-800 text-white dark:bg-white dark:hover:bg-neutral-200 dark:text-black shadow-xl transition-all hover:-translate-y-1 font-black uppercase tracking-widest rounded-xl h-16 px-10 border-2 border-transparent"
-          )}
-        >
-          Draft Legal Notice <FileText className="ml-2 h-5 w-5" />
-        </Link>
+        <div className="max-w-2xl mx-auto">
+          <div className="h-16 w-16 rounded-3xl bg-primary/10 flex items-center justify-center mx-auto mb-6">
+            <Scale className="h-8 w-8 text-primary" />
+          </div>
+          <h3 className="text-3xl font-black text-white mb-4">Protect Your Rights</h3>
+          <p className="text-muted-foreground font-medium mb-8">
+            The overcharges found are legally actionable under consumer protection laws. Use our automated notice generator to formally challenge these charges.
+          </p>
+          <Link href="/letter" className={cn(buttonVariants({ size: "lg" }), "h-16 px-12 rounded-2xl bg-primary text-primary-foreground font-black text-lg shadow-2xl shadow-primary/30 hover:bg-primary/90 transition-all active:scale-95")}>
+            Generate Legal Defense Notice
+          </Link>
+        </div>
       </motion.div>
     </div>
   )

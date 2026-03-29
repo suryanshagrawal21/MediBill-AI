@@ -5,7 +5,7 @@ import { useEffect, useState } from "react"
 import { motion } from "framer-motion"
 import { 
   ArrowLeft, Download, Send, Scale, Printer, CheckCircle, 
-  Stethoscope, FileText, ShieldAlert 
+  FileText, ShieldAlert, Mail, Share2
 } from "lucide-react"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -43,12 +43,19 @@ export default function LetterPage() {
 
   if (!data) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-        <Stethoscope className="h-12 w-12 text-muted-foreground animate-pulse" />
-        <p className="text-muted-foreground font-medium">No letter data found. Please complete an analysis first.</p>
-        <Link href="/upload" className={buttonVariants({ variant: "outline" })}>
-          Go to Upload
-        </Link>
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6 text-center">
+        <div className="h-20 w-20 rounded-3xl bg-primary/10 flex items-center justify-center animate-pulse">
+          <Scale className="h-10 w-10 text-primary" />
+        </div>
+        <div>
+          <h2 className="text-2xl font-black text-white mb-2">No Data Available</h2>
+          <p className="text-muted-foreground font-medium max-w-xs mx-auto mb-8">
+            Complete a bill audit to generate a legal notice for overcharges.
+          </p>
+          <Link href="/upload" className={cn(buttonVariants({ size: "lg" }), "rounded-2xl px-8 bg-primary text-primary-foreground font-black shadow-lg shadow-primary/20 transition-all active:scale-95")}>
+            Audit Bill Now
+          </Link>
+        </div>
       </div>
     )
   }
@@ -58,141 +65,151 @@ export default function LetterPage() {
   const dateStr = patient.date || new Date().toLocaleDateString("en-IN")
 
   return (
-    <div className="container mx-auto px-4 py-8 lg:py-12 max-w-4xl min-h-[calc(100vh-8rem)] relative">
-      <div className="absolute top-0 inset-x-0 h-[300px] bg-gradient-to-b from-neutral-100 to-transparent dark:from-neutral-900/20 pointer-events-none -z-10" />
-
+    <div className="max-w-5xl mx-auto space-y-10 pb-20">
+      {/* Header */}
       <motion.div 
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10"
+        initial={{ opacity: 0, x: -20 }}
+        animate={{ opacity: 1, x: 0 }}
+        className="flex flex-col md:flex-row md:items-center justify-between gap-6"
       >
         <div className="flex items-center gap-4">
-          <Link href="/results" className={cn(buttonVariants({ variant: "outline", size: "icon" }), "rounded-full shadow-sm bg-white/60 dark:bg-card/60 backdrop-blur-md border-black/20 hover:bg-black hover:text-white transition-all")}>
-            <ArrowLeft className="h-5 w-5" />
+          <Link href="/results" className="h-12 w-12 rounded-xl border border-white/10 flex items-center justify-center hover:bg-white/5 transition-colors">
+            <ArrowLeft className="h-5 w-5 text-white" />
           </Link>
           <div>
-            <div className="flex items-center gap-2 mb-1">
-              <Scale className="h-5 w-5 text-black dark:text-white" />
-              <h1 className="text-3xl font-black uppercase tracking-tight">Legal Draft</h1>
+            <div className="flex items-center gap-3 mb-1">
+              <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary bg-primary/10 px-3 py-1 rounded-full border border-primary/20">Legal Defense</span>
             </div>
-            <p className="text-muted-foreground text-sm flex items-center gap-1.5 font-medium">
-              <CheckCircle className="h-4 w-4 text-black dark:text-white" /> AI-generated complaint draft
-            </p>
+            <h1 className="text-4xl font-black tracking-tighter text-white">Complaint Draft</h1>
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline" className="hidden sm:flex rounded-xl h-12 px-6 shadow-sm font-black uppercase tracking-widest border-2 border-black hover:bg-black hover:text-white transition-all" onClick={() => window.print()}>
-            <Printer className="mr-2 h-4 w-4" /> Print
+          <Button variant="outline" className="rounded-xl border-white/10 hover:bg-white/5 font-bold h-12 px-6" onClick={() => window.print()}>
+            <Printer className="mr-2 h-4 w-4" /> Print Notice
           </Button>
-          <Button 
-            className="bg-black text-white dark:bg-white dark:text-black rounded-xl h-12 px-8 font-black uppercase tracking-widest shadow-xl border-2 border-transparent hover:scale-105 transition-all"
-            onClick={handleSavePDF}
-          >
+          <Button className="rounded-xl bg-white text-black hover:bg-neutral-200 font-bold h-12 px-8 shadow-xl" onClick={handleSavePDF}>
             <Download className="mr-2 h-4 w-4" /> Save PDF
           </Button>
         </div>
       </motion.div>
 
       <motion.div
-        initial={{ opacity: 0, y: 40 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1, duration: 0.5, type: "spring", damping: 25 }}
+        initial={{ opacity: 0, scale: 0.98 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.5 }}
+        className="glass-panel overflow-hidden rounded-[3rem] border-white/5"
       >
-        <Card className="shadow-2xl border-2 border-black/10 dark:border-white/10 overflow-hidden bg-white dark:bg-neutral-900/40">
-          <CardHeader className="bg-neutral-50/50 dark:bg-black/40 border-b border-black/20 flex flex-row items-center justify-between py-6 px-6 sm:px-10">
-            <CardTitle className="text-lg flex items-center gap-2.5 font-black uppercase tracking-tighter text-black dark:text-white">
-              <ShieldAlert className="h-5 w-5" />
-              Notice to Administrator
-            </CardTitle>
-            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground bg-white dark:bg-black px-3 py-1 rounded-full border border-black/20 shadow-sm hidden sm:inline-block">Ref: {patient.bill_number || "OVC-PENDING"}</span>
-          </CardHeader>
-          
-          <CardContent className="p-0 bg-neutral-100 dark:bg-black flex justify-center py-12 sm:py-20">
-            <div className="w-[90%] max-w-[800px] bg-white dark:bg-neutral-900 shadow-2xl min-h-[700px] p-8 sm:p-20 relative overflow-hidden border border-black/10">
-              <div className="relative z-10 font-serif text-[15px] sm:text-[17px] leading-8 space-y-8 text-black dark:text-neutral-200 max-w-2xl mx-auto">
-                
-                <div className="flex justify-between items-start mb-16">
-                  <div>
-                    <p className="font-black uppercase text-[12px] tracking-widest text-muted-foreground mb-1">TO:</p>
-                    <p className="font-bold">Medical Superintendent,</p>
-                    <p className="font-black text-xl mt-1">{patient.hospital_name}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-black uppercase text-[12px] tracking-widest text-muted-foreground mb-1">DATE:</p>
-                    <p className="font-bold">{dateStr}</p>
-                  </div>
+        {/* Document Viewer */}
+        <div className="bg-black/40 flex justify-center py-16 sm:py-24 px-4 overflow-x-auto">
+          <div className="w-full max-w-[800px] bg-white text-zinc-900 shadow-[0_0_80px_rgba(0,0,0,0.5)] min-h-[1050px] p-12 sm:p-20 relative flex flex-col shrink-0">
+            {/* Watermark */}
+            <div className="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none overflow-hidden">
+              <Scale className="w-[500px] h-[500px] -rotate-12" />
+            </div>
+
+            <div className="relative z-10 font-serif leading-[1.8] space-y-8 flex-1">
+              {/* Letterhead */}
+              <div className="flex justify-between items-start border-b-2 border-zinc-100 pb-10">
+                <div className="space-y-1">
+                  <p className="font-bold text-xs uppercase tracking-[0.2em] text-zinc-400">Recipient</p>
+                  <p className="font-bold text-lg">Hospital Administrator</p>
+                  <p className="font-black text-2xl text-primary leading-tight">{patient.hospital_name}</p>
                 </div>
-
-                <div className="py-6 border-y-4 border-black mt-8 mb-10 text-center bg-neutral-50 dark:bg-neutral-800/30">
-                  <p className="font-black uppercase tracking-widest text-sm leading-6 px-4">
-                    Subject: Formal Complaint Regarding Inflation of Medical Bill Charges
-                  </p>
+                <div className="text-right space-y-1">
+                  <p className="font-bold text-xs uppercase tracking-[0.2em] text-zinc-400">Filing Date</p>
+                  <p className="font-bold text-lg">{dateStr}</p>
                 </div>
+              </div>
 
-                <p className="font-bold">Dear Sir/Madam,</p>
+              {/* Subject */}
+              <div className="py-6 border-y-2 border-zinc-900/5 my-8 text-center bg-zinc-50 flex items-center justify-center px-6">
+                <p className="font-black uppercase tracking-widest text-sm leading-relaxed max-w-lg">
+                  Subject: Formal Grievance & Request for Refund — Inflated Medical Charges (Bill: {patient.bill_number})
+                </p>
+              </div>
 
-                <p className="text-justify">
-                  I, <strong>{patient.patient_name}</strong>, am writing to formally raise a serious concern regarding the medical bill generated for my recent treatment (Bill No: <span className="font-black underline decoration-2 underline-offset-4">{patient.bill_number}</span>) dated <strong>{dateStr}</strong>.
+              <div className="space-y-6 text-[17px]">
+                <p className="font-bold">To Whom It May Concern,</p>
+
+                <p>
+                  I, <strong>{patient.patient_name}</strong>, am writing to formally contest the charges itemized in medical bill number <strong>{patient.bill_number}</strong> issued by <strong>{patient.hospital_name}</strong>.
                 </p>
 
-                <p className="text-justify">
-                  After professional AI analysis compared against government-approved benchmarks (CGHS/NPPA), I have identified significant overcharging in the following line items:
+                <p>
+                  Based on a comprehensive audit conducted using AI protocols and government-mandated price benchmarks (CGHS/NPPA), the following discrepancies were identified:
                 </p>
 
-                <div className="bg-neutral-50 dark:bg-neutral-800/20 border-2 border-dashed border-black/20 rounded-xl p-8 my-8">
-                  <ul className="list-none space-y-6">
-                    {items.length > 0 ? items.map((item: any, idx: number) => (
-                      <li key={idx} className="flex flex-col sm:flex-row sm:justify-between sm:items-center border-b border-black/10 pb-4 last:border-0 last:pb-0">
-                        <span className="font-bold flex items-center gap-3">
-                          <Stethoscope className="h-4 w-4" />
-                          {item.item}
-                        </span>
-                        <div className="mt-2 sm:mt-0 text-[13px] font-medium">
-                          <span className="text-muted-foreground uppercase tracking-widest text-[10px]">Billed:</span> <span className="font-black ml-1">₹{item.charged.toLocaleString("en-IN")}</span>
-                          <span className="mx-3 text-neutral-300">|</span>
-                          <span className="text-muted-foreground uppercase tracking-widest text-[10px]">Fair:</span> <span className="font-black ml-1">₹{item.benchmark.toLocaleString("en-IN")}</span>
-                        </div>
-                      </li>
-                    )) : (
-                      <li className="text-center font-bold text-muted-foreground italic">No overcharged items detected in analysis</li>
-                    )}
-                  </ul>
+                <div className="bg-zinc-50 border border-zinc-100 rounded-2xl overflow-hidden my-8">
+                  <table className="w-full text-left">
+                    <thead className="bg-zinc-100 border-b border-zinc-200">
+                      <tr>
+                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Service/Item</th>
+                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 text-right">Billed Amount</th>
+                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 text-right text-emerald-600">Fair Bench.</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-200">
+                      {items.map((item: any, idx: number) => (
+                        <tr key={idx}>
+                          <td className="px-6 py-4 font-bold text-zinc-700">{item.item}</td>
+                          <td className="px-6 py-4 font-bold text-right text-rose-600">₹{item.charged.toLocaleString("en-IN")}</td>
+                          <td className="px-6 py-4 font-bold text-right text-emerald-600">₹{item.benchmark.toLocaleString("en-IN")}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="bg-zinc-900 text-white font-bold">
+                      <tr>
+                        <td className="px-6 py-4">TOTAL OVERCHARGE DISCOVERED</td>
+                        <td colSpan={2} className="px-6 py-4 text-right text-rose-400 text-lg">
+                          ₹{data.total_overcharge.toLocaleString("en-IN")}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
                 </div>
 
-                <p className="text-justify font-medium">
-                  These charges appear to be in direct contradiction with standard medical pricing guidelines. I request an immediate review of this bill and an adjustment of the excess amount.
+                <p>
+                  These charges appear to be in direct violation of the pricing transparency and fair practice standards. I request an immediate review of these line items and a refund of the excess amount of <strong>₹{data.total_overcharge.toLocaleString("en-IN")}</strong>.
                 </p>
 
-                <p className="text-justify text-muted-foreground italic text-sm">
-                  Failure to receive a response within 7 working days will result in escalation to the appropriate consumer protection and healthcare regulatory bodies.
+                <p>
+                  I expect a formal response and a revised invoice within 7 business days. Failure to address this grievance will result in escalation to the National Consumer Helpline and the State Medical Council.
                 </p>
+              </div>
 
-                <div className="mt-20 pt-10">
-                  <p className="mb-10">Sincerely,</p>
-                  <p className="font-black text-2xl tracking-tighter uppercase">{patient.patient_name}</p>
-                  <div className="h-0.5 w-48 bg-black mt-2 mb-2"></div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Authorized Patient Signatory</p>
-                </div>
-
+              {/* Signature */}
+              <div className="pt-20 mt-auto">
+                <p className="font-bold flex items-center gap-2 mb-12">
+                  <span className="h-0.5 w-12 bg-zinc-900" />
+                  Respectfully,
+                </p>
+                <p className="font-black text-3xl tracking-tighter uppercase text-zinc-900 mb-1">{patient.patient_name}</p>
+                <div className="h-1 w-48 bg-primary mb-2" />
+                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400">Authorized Signatory</p>
               </div>
             </div>
-          </CardContent>
-          <CardFooter className="bg-neutral-50 dark:bg-black border-t border-black/20 p-8 sm:px-10 flex flex-col sm:flex-row justify-end gap-5">
-            <Button 
-              variant="outline" 
-              className="w-full sm:w-auto rounded-xl h-14 px-8 font-black uppercase tracking-widest border-2 border-black hover:bg-black hover:text-white transition-all shadow-md"
-              onClick={handleEmail}
-            >
-              <Send className="mr-2 h-5 w-5" /> Send to Hospital
+          </div>
+        </div>
+
+        {/* Footer Actions */}
+        <div className="bg-white/5 border-t border-white/5 p-8 flex flex-col sm:flex-row items-center justify-between gap-6">
+          <div className="flex items-center gap-4">
+            <div className="h-10 w-10 rounded-full bg-emerald-500/10 flex items-center justify-center">
+              <CheckCircle className="h-5 w-5 text-emerald-500" />
+            </div>
+            <p className="text-sm font-medium text-muted-foreground max-w-[240px]">
+              This document was generated using verified benchmark data.
+            </p>
+          </div>
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            <Button variant="outline" className="flex-1 sm:flex-none rounded-xl border-white/10 hover:bg-white/5 font-bold h-14 px-8" onClick={handleEmail}>
+              <Mail className="mr-2 h-5 w-5" /> Email to Hospital
             </Button>
-            <Button 
-              className="w-full sm:w-auto bg-black text-white dark:bg-white dark:text-black font-black uppercase tracking-widest rounded-xl h-14 px-10 shadow-xl border-2 border-transparent"
-              onClick={() => window.print()}
-            >
-              <Printer className="mr-2 h-5 w-5" /> Print Notice
+            <Button className="flex-1 sm:flex-none h-14 rounded-xl bg-primary text-primary-foreground font-black px-10 shadow-xl shadow-primary/20" onClick={handleSavePDF}>
+              <Send className="mr-2 h-5 w-5" /> File Complaint Now
             </Button>
-          </CardFooter>
-        </Card>
+          </div>
+        </div>
       </motion.div>
     </div>
   )

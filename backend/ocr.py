@@ -3,7 +3,10 @@ import base64
 import json
 import re
 import pathlib
+import pytesseract
+from PIL import Image
 from dotenv import load_dotenv
+import io
 
 # Load .env from the backend directory
 load_dotenv(pathlib.Path(__file__).parent / ".env")
@@ -31,7 +34,7 @@ def extract_bill_data_with_gemini(file_bytes: bytes, mime_type: str) -> dict:
         "gemini-1.5-flash-latest",
     ]
 
-    prompt = """Extract medical bill data into JSON:
+    prompt = """Extract medical bill data into JSON with the following fields:
 {
   "patient_name": "Name",
   "hospital_name": "Hospital",
@@ -39,9 +42,18 @@ def extract_bill_data_with_gemini(file_bytes: bytes, mime_type: str) -> dict:
   "date": "DD-MM-YYYY",
   "doctor_name": "Doctor",
   "ward": "Ward type",
-  "items": [{"name": "Item", "charged_price": 0.0, "quantity": 1, "category": "Diagnostics|Pharmacy|Surgery|Consultation|Room|ICU|Nursing|Radiology|Consumables|Transport|Other"}]
+  "total_amount": 0.0,
+  "tax": 0.0,
+  "discount": 0.0,
+  "items": [{
+    "name": "Item",
+    "charged_price": 0.0,
+    "quantity": 1,
+    "category": "Diagnostics|Pharmacy|Surgery|Consultation|Room|ICU|Nursing|Radiology|Consumables|Transport|Other"
+  }]
 }
-Return ONLY JSON. No markdown."""
+Return ONLY JSON without any markdown formatting."
+"""
 
     b64_data = base64.b64encode(file_bytes).decode("utf-8")
     inline_data = {"inline_data": {"mime_type": mime_type, "data": b64_data}}
@@ -52,7 +64,7 @@ Return ONLY JSON. No markdown."""
         model = genai.GenerativeModel(model_name)
         
         # Reduced retries for speed; prefer switching models over waiting
-        for attempt in range(2): 
+        for attempt in range(3): 
             try:
                 response = model.generate_content([prompt, inline_data])
                 if not response or not hasattr(response, 'text') or not response.text:
@@ -105,3 +117,50 @@ def guess_mime_type(filename: str, content: bytes) -> str:
         return "image/jpeg"
 
     return "image/jpeg"  # safe default for most phone photos
+
+
+def fallback_ocr(file_bytes: bytes, mime_type: str) -> dict:
+    """Simple fallback OCR using pytesseract when Gemini fails.
+    Returns a minimal JSON structure with empty patient info and items list.
+    """
+    try:
+        if mime_type.startswith("image"):
+            image = Image.open(io.BytesIO(file_bytes))
+            text = pytesseract.image_to_string(image)
+        elif mime_type == "application/pdf":
+            # For PDF, attempt to convert first page to image using pdf2image if available
+            try:
+                from pdf2image import convert_from_bytes
+                pages = convert_from_bytes(file_bytes, first_page=1, last_page=1)
+                image = pages[0]
+                text = pytesseract.image_to_string(image)
+            except Exception:
+                text = ""
+        else:
+            text = ""
+        # Very naive parsing: split lines, look for price patterns
+        items = []
+        for line in text.splitlines():
+            parts = line.split()
+            if len(parts) >= 2:
+                # Assume last token is price
+                try:
+                    price = float(parts[-1].replace(",", ""))
+                    name = " ".join(parts[:-1])
+                    items.append({"name": name, "charged_price": price, "quantity": 1, "category": "Other"})
+                except ValueError:
+                    continue
+        return {
+            "patient_name": "",
+            "hospital_name": "",
+            "bill_number": "",
+            "date": "",
+            "doctor_name": "",
+            "ward": "",
+            "total_amount": 0,
+            "tax": 0,
+            "discount": 0,
+            "items": items,
+        }
+    except Exception as e:
+        raise RuntimeError(f"Fallback OCR failed: {e}")

@@ -27,7 +27,7 @@ def generate_pdf_report(analysis_results: list, total_bill: float, total_overcha
     # Table data
     data = [["Item", "Charged Price", "Benchmark", "Difference", "Status"]]
     for item in analysis_results:
-        status = "🚨 Overcharged" if item.is_overcharged else "✅ Fair"
+        status = " Overcharged" if item.is_overcharged else " Fair"
         data.append([
             item.item_name,
             f"₹{item.charged_price:.2f}",

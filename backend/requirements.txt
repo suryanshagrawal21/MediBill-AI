@@ -10,3 +10,7 @@ python-multipart
 fuzzywuzzy
 python-Levenshtein
 python-dotenv
+pytesseract
+Pillow
+pdf2image
+

@@ -17,8 +17,10 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "MediBill AI | Medical Bill Negotiator",
-  description: "Detect hospital overcharges instantly using AI and generate legal complaint reports.",
+  description: "Detect hospital overcharges instantly using AI and protect your family from medical fraud.",
 };
+
+import { AppLayout } from "@/components/AppLayout";
 
 export default function RootLayout({
   children,
@@ -30,31 +32,14 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col bg-background font-sans">
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
+          defaultTheme="dark"
           enableSystem
           disableTransitionOnChange
         >
-          <Navbar />
-          <main className="flex-1">{children}</main>
+          <AppLayout>
+            {children}
+          </AppLayout>
           <Toaster richColors position="top-right" />
-          <footer className="border-t border-border/50 bg-muted/20 dark:bg-card/20 py-10 backdrop-blur-sm">
-            <div className="container mx-auto px-6">
-              <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-                <div className="flex items-center gap-2 text-sm font-bold">
-                  <div className="h-7 w-7 rounded-lg bg-black dark:bg-white text-white dark:text-black flex items-center justify-center text-xs">AI</div>
-                  MediBill <span className="text-black dark:text-white">AI</span>
-                </div>
-                <p className="text-xs text-muted-foreground text-center">
-                  Benchmarks based on CGHS/NPPA standards. For patient use only. © {new Date().getFullYear()} MediBill AI.
-                </p>
-                <div className="flex gap-4 text-xs text-muted-foreground">
-                  <span>Privacy</span>
-                  <span>Terms</span>
-                  <span>Contact</span>
-                </div>
-              </div>
-            </div>
-          </footer>
         </ThemeProvider>
       </body>
     </html>

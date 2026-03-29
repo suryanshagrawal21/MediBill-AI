@@ -118,12 +118,25 @@ async def extract_bill(background_tasks: BackgroundTasks, file: UploadFile = Fil
     # ── Step 1: Extract raw data from bill using Gemini Vision ──
     try:
         bill_data = ocr.extract_bill_data_with_gemini(content, mime_type)
-    except EnvironmentError as e:
-        raise HTTPException(status_code=503, detail=f"API key not configured: {str(e)}")
-    except json.JSONDecodeError as e:
-        raise HTTPException(status_code=422, detail=f"Gemini returned unparseable JSON: {str(e)}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Gemini extraction failed: {str(e)}")
+        print(f"[Gemini Error] {e}. Falling back to basic OCR...")
+        try:
+            bill_data = ocr.fallback_ocr(content, mime_type)
+        except Exception as fallback_err:
+            raise HTTPException(status_code=500, detail=f"Both Gemini and fallback OCR failed: {fallback_err}")
+
+    # Validation of required fields
+    required_keys = {"patient_name", "hospital_name", "bill_number", "date", "doctor_name", "ward", "items"}
+    for key in required_keys:
+        if key not in bill_data:
+            bill_data[key] = "Unknown" if key != "items" else []
+
+    items = bill_data.get("items", [])
+    patient_name = bill_data.get("patient_name", "Unknown")
+    hospital_name = bill_data.get("hospital_name", "Unknown")
+
+    if not items and patient_name == "Unknown" and hospital_name == "Unknown":
+        raise HTTPException(status_code=400, detail="Could not read the bill. Please upload a correct bill.")
 
     # ── Step 2: Enrich with CGHS benchmarks ──
     items = bill_data.get("items", [])

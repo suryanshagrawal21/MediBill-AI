@@ -30,18 +30,18 @@ export const HOSPITALS = [
 ]
 
 export const PROCEDURES = [
-  { value: "blood_test_cbc", label: "Blood Test – CBC", icon: "🩸" },
-  { value: "xray_chest", label: "X-Ray – Chest PA View", icon: "🫁" },
-  { value: "mri_brain", label: "MRI – Brain Scan", icon: "🧠" },
-  { value: "ct_abdomen", label: "CT Scan – Abdomen", icon: "📸" },
-  { value: "ecg", label: "ECG – Electrocardiogram", icon: "❤️" },
-  { value: "surgery_appendix", label: "Surgery – Appendectomy", icon: "🔪" },
-  { value: "surgery_knee", label: "Surgery – Knee Replacement", icon: "🦴" },
-  { value: "icu_stay", label: "ICU Stay (per day)", icon: "🏥" },
-  { value: "dialysis", label: "Dialysis Session", icon: "💉" },
-  { value: "delivery_normal", label: "Normal Delivery", icon: "👶" },
-  { value: "delivery_csec", label: "C-Section Delivery", icon: "👶" },
-  { value: "angioplasty", label: "Angioplasty", icon: "🫀" },
+  { value: "blood_test_cbc", label: "Blood Test – CBC", icon: "" },
+  { value: "xray_chest", label: "X-Ray – Chest PA View", icon: "" },
+  { value: "mri_brain", label: "MRI – Brain Scan", icon: "" },
+  { value: "ct_abdomen", label: "CT Scan – Abdomen", icon: "" },
+  { value: "ecg", label: "ECG – Electrocardiogram", icon: "️" },
+  { value: "surgery_appendix", label: "Surgery – Appendectomy", icon: "" },
+  { value: "surgery_knee", label: "Surgery – Knee Replacement", icon: "" },
+  { value: "icu_stay", label: "ICU Stay (per day)", icon: "" },
+  { value: "dialysis", label: "Dialysis Session", icon: "" },
+  { value: "delivery_normal", label: "Normal Delivery", icon: "" },
+  { value: "delivery_csec", label: "C-Section Delivery", icon: "" },
+  { value: "angioplasty", label: "Angioplasty", icon: "" },
 ]
 
 export const CITIES = [

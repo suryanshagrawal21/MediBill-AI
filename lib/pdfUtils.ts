@@ -38,9 +38,9 @@ export function generateReportHTML(data: AnalysisResult): string {
 <title>MediBill AI – Overcharge Report</title>
 <style>
   body { font-family: 'Segoe UI', Arial, sans-serif; max-width: 900px; margin: 0 auto; padding: 40px; color: #111827; }
-  .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; padding-bottom: 20px; border-bottom: 3px solid #2563eb; }
-  .logo { font-size: 24px; font-weight: 800; color: #1d4ed8; }
-  .logo span { color: #16a34a; }
+  .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; padding-bottom: 20px; border-bottom: 3px solid #0d9488; }
+  .logo { font-size: 24px; font-weight: 800; color: #0d9488; }
+  .logo span { color: #0d9488; }
   .badge { background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; padding: 6px 14px; border-radius: 999px; font-size: 13px; font-weight: 700; }
   .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 28px; background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; }
   .info-item label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; }
@@ -67,7 +67,7 @@ export function generateReportHTML(data: AnalysisResult): string {
       <div style="font-size:13px;color:#64748b;margin-top:4px;">Medical Bill Overcharge Detection Report</div>
     </div>
     <div>
-      <span class="badge">⚠ ${data.overcharge_percentage}% Overcharged</span>
+      <span class="badge"> ${data.overcharge_percentage}% Overcharged</span>
       <div style="font-size:12px;color:#9ca3af;text-align:right;margin-top:6px;">Generated: ${new Date().toLocaleDateString("en-IN")}</div>
     </div>
   </div>

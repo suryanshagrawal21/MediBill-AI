@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Activity, LayoutDashboard, FileText, Menu, X, Upload, TrendingUp, Stethoscope } from "lucide-react"
+import { Activity, LayoutDashboard, FileText, Menu, X, Upload, TrendingUp, ShieldCheck } from "lucide-react"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { useState } from "react"
 import { cn } from "@/lib/utils"
@@ -11,9 +11,8 @@ import { ModeToggle } from "@/components/mode-toggle"
 const navItems = [
   { name: "Home", href: "/", icon: Activity },
   { name: "Upload", href: "/upload", icon: Upload },
-  { name: "Predict", href: "/predict", icon: TrendingUp },
-  { name: "Results", href: "/results", icon: LayoutDashboard },
-  { name: "Letter", href: "/letter", icon: FileText },
+  { name: "Dashboard", href: "/results", icon: LayoutDashboard },
+  { name: "History", href: "/history", icon: TrendingUp },
 ]
 
 export function Navbar() {
@@ -21,28 +20,28 @@ export function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
 
   return (
-    <nav className="sticky top-0 z-50 w-full border-b glass-panel">
+    <nav className="sticky top-0 z-50 w-full border-b border-white/10 glass-panel">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         <div className="flex items-center gap-2">
           <Link href="/" className="flex items-center gap-2 group">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-black dark:bg-white text-white dark:text-black shadow-lg shadow-black/20 dark:shadow-white/20 group-hover:scale-105 transition-transform">
-              <Stethoscope className="h-5 w-5" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20 group-hover:scale-105 transition-all duration-300">
+              <ShieldCheck className="h-5 w-5" />
             </div>
             <span className="text-xl font-bold tracking-tight text-foreground">
-              MediBill <span className="text-black dark:text-white">AI</span>
+              MediBill <span className="text-primary font-extrabold">AI</span>
             </span>
           </Link>
         </div>
 
         {/* Desktop Nav */}
-        <div className="hidden md:flex md:items-center md:gap-6">
+        <div className="hidden md:flex md:items-center md:gap-8">
           {navItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
               className={cn(
-                "flex items-center gap-2 text-sm font-medium transition-colors hover:text-black dark:hover:text-white",
-                pathname === item.href ? "text-black dark:text-white font-bold" : "text-muted-foreground"
+                "flex items-center gap-2 text-sm font-medium transition-all hover:text-primary",
+                pathname === item.href ? "text-primary font-bold" : "text-muted-foreground"
               )}
             >
               <item.icon className="h-4 w-4" />
@@ -54,10 +53,11 @@ export function Navbar() {
             href="/upload" 
             className={cn(
               buttonVariants({ size: "default" }),
-              "ml-2 rounded-full px-6 bg-black dark:bg-white hover:bg-neutral-800 dark:hover:bg-neutral-200 text-white dark:text-black shadow-md flex items-center gap-2 transition-all hover:shadow-lg hover:scale-105"
+              "ml-2 rounded-full px-8 bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20 flex items-center gap-2 transition-all hover:scale-105 active:scale-95"
             )}
           >
-            Upload Bill
+            <Upload className="h-4 w-4" />
+            Scan Bill
           </Link>
         </div>
 
