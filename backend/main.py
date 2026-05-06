@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from .database import engine, get_db
-from . import models, schemas, ocr, analysis, report_gen, ai_letter
+from . import models, schemas, ocr, analysis, report_gen, ai_letter, validation
 import io
 import json
 
@@ -145,49 +145,75 @@ async def extract_bill(background_tasks: BackgroundTasks, file: UploadFile = Fil
         except Exception as fallback_err:
             raise HTTPException(status_code=500, detail=f"Both Gemini and fallback OCR failed: {fallback_err}")
 
-    # Validation of required fields
-    items = bill_data.get("items", bill_data.get("medicines", []))
-    patient_name = bill_data.get("patient_name", "Unknown")
-    hospital_name = bill_data.get("hospital_name", "Unknown")
+    # Validation of required fields — support both new 'items' key and legacy 'medicines' key
+    items = bill_data.get("items") or bill_data.get("medicines") or []
+    patient_name = bill_data.get("patient_name") or "Unknown"
+    hospital_name = bill_data.get("hospital_name") or "Unknown"
+
+    # Filter out any null entries the model might have returned
+    items = [i for i in items if isinstance(i, dict)]
 
     if not items and patient_name == "Unknown" and hospital_name == "Unknown":
-        raise HTTPException(status_code=400, detail="Could not read the bill. Please upload a correct bill.")
-        
-    for item in items:
-        # Standardize name mapping
-        name_val = item.get("matched_name") or item.get("ocr_name") or item.get("name") or "Unknown Item"
-        item["name"] = name_val
+        raise HTTPException(status_code=400, detail="Could not read the bill. Please upload a clearer image.")
 
-        # Standardize charged price
-        extracted_p = item.get("extracted_price") or item.get("price")
-        if extracted_p is not None and "charged_price" not in item:
-            price_val = str(extracted_p).replace(',', '').replace('Rs', '').replace('₹', '').strip()
-            try:
-                import re
-                p_num = re.sub(r'[^\d.]', '', price_val)
-                item["charged_price"] = float(p_num) if p_num else 0.0
-            except ValueError:
-                item["charged_price"] = 0.0
-                
-        # Standardize expected price (CGHS/NPPA)
-        ep_cghs = str(item.get("cghs_price", "")).strip()
-        ep_nppa = str(item.get("nppa_price", "")).strip()
-        ep_base = item.get("expected_price")
-        
-        ep_val = ep_cghs if ep_cghs and ep_cghs.lower() not in ["none", "null", ""] else ep_nppa
-        if not ep_val or ep_val.lower() in ["none", "null", ""]:
-            ep_val = ep_base
+    # ── Validation ──
+    grand_total = bill_data.get("grand_total") or bill_data.get("total_amount")
+    if not validation.validate_totals(items, grand_total):
+        print("[Warning] Validation failed: items sum != grand total")
+
+    from rapidfuzz import process
+    benchmark_keys = list(BENCHMARK_MAP.keys())
+
+    import re
+
+    def safe_float(val) -> float | None:
+        """Safely parse a numeric value, stripping currency symbols."""
+        if val is None:
+            return None
+        cleaned = re.sub(r'[^\d.]', '', str(val).replace(',', '').strip())
+        try:
+            return float(cleaned) if cleaned else None
+        except ValueError:
+            return None
+
+    for item in items:
+        # ── Name: prefer clean 'item_name', fall back to others ──
+        name_val = (
+            item.get("item_name") or
+            item.get("name") or
+            "Unknown Item"
+        )
+        if str(name_val).lower() in ["null", "none", ""]:
+            name_val = "Unknown Item"
             
-        if ep_val is not None and str(ep_val).lower() not in ["none", "null", ""]:
-            ep_val_str = str(ep_val).replace(',', '').replace('Rs', '').replace('₹', '').strip()
-            try:
-                import re
-                ep_num = re.sub(r'[^\d.]', '', ep_val_str)
-                item["expected_price"] = float(ep_num) if ep_num else None
-            except ValueError:
-                item["expected_price"] = None
-        else:
-            item["expected_price"] = None
+        # Medicine Name Correction via RapidFuzz (only to get the benchmark key, keep original name)
+        match = process.extractOne(name_val.lower(), benchmark_keys, score_cutoff=80)
+        item["name"] = name_val.strip()
+        if match:
+            item["matched_benchmark_key"] = match[0].title()
+
+        # ── Charged price ──
+        cp = safe_float(item.get("unit_price") or item.get("charged_price") or item.get("total_price"))
+        item["charged_price"] = cp if cp is not None else 0.0
+
+        # ── Quantity ──
+        qty_raw = item.get("quantity", 1)
+        try:
+            item["quantity"] = max(1, int(float(str(qty_raw)))) if qty_raw else 1
+        except (ValueError, TypeError):
+            item["quantity"] = 1
+
+        # ── Expected / CGHS / NPPA price ──
+        ep = safe_float(item.get("expected_price"))
+        cghs = safe_float(item.get("cghs_price"))
+        nppa = safe_float(item.get("nppa_price"))
+        item["expected_price"] = ep or cghs or nppa  # best available benchmark
+
+        # ── Category — default to 'Other' if missing ──
+        cat = item.get("category", "Other")
+        if not cat or str(cat).lower() in ["null", "none", ""]:
+            cat = "Other"
+        item["category"] = cat
 
     bill_data["items"] = items
     
@@ -281,7 +307,7 @@ async def extract_bill(background_tasks: BackgroundTasks, file: UploadFile = Fil
             "patient_name": bill_data.get("patient_name", "Unknown"),
             "hospital_name": bill_data.get("hospital_name", "Unknown"),
             "bill_number": bill_data.get("bill_number", "Unknown"),
-            "date": bill_data.get("date", "Unknown"),
+            "date": bill_data.get("bill_date") or bill_data.get("date", "Unknown"),
             "doctor_name": bill_data.get("doctor_name", "Unknown"),
             "ward": bill_data.get("ward", "Unknown"),
             "emails": bill_data.get("emails", []),

@@ -39,7 +39,7 @@ export function OverchargeAlert({ amount, percentage }: OverchargeAlertProps) {
 
           <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
             <Link 
-              href="/legal"
+              href="/letter"
               className="px-8 h-14 rounded-2xl bg-rose-500 text-white font-black flex items-center justify-center gap-2 shadow-xl shadow-rose-500/20 hover:bg-rose-600 transition-all"
             >
               <Scale className="h-5 w-5" />

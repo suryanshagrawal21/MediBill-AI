@@ -89,7 +89,7 @@ export default function ResultsPage() {
           <OverchargeAlert amount={totalOvercharge} percentage={overchargePercentage} />
           <BillSummaryCard patient={patient} />
         </div>
-        <PriceChart billed={totalCharged} benchmark={totalCharged - totalOvercharge} />
+        <PriceChart billed={totalCharged} benchmark={data.total_benchmark || (totalCharged - totalOvercharge)} />
       </div>
 
       {/* Price Breakdown Table */}

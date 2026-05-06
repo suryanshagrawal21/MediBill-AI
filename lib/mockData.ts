@@ -5,6 +5,10 @@ export interface BillItem {
   benchmark: number
   overcharge: number
   category: string
+  quantity: number
+  is_overcharged: boolean
+  unit_price?: number
+  benchmark_source?: string
 }
 
 export interface PatientInfo {

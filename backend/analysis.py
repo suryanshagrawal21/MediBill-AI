@@ -1,4 +1,4 @@
-from fuzzywuzzy import process
+from difflib import get_close_matches
 from sqlalchemy.orm import Session
 from . import models, schemas
 
@@ -14,12 +14,13 @@ def analyze_bill(bill_items: list[schemas.ItemCreate], db: Session):
     for item in bill_items:
         total_bill += item.price * item.quantity
         
-        # Fuzzy match item name
-        match, score = process.extractOne(item.name, item_names)
+        # Fuzzy match item name using stdlib difflib
+        matches = get_close_matches(item.name.lower(), [n.lower() for n in item_names], n=1, cutoff=0.6)
         
-        if score > 80:
-            rate_card = db.query(models.RateCard).filter(models.RateCard.item_name == match).first()
-            benchmark = rate_card.benchmark_price
+        if matches:
+            match_lower = matches[0]
+            rate_card = next((rc for rc in rate_cards if rc.item_name.lower() == match_lower), None)
+            benchmark = rate_card.benchmark_price if rate_card else 0.0
             
             # Comparison: if charged_price > 1.15 * benchmark → flag
             is_overcharged = item.price > 1.15 * benchmark
@@ -39,7 +40,7 @@ def analyze_bill(bill_items: list[schemas.ItemCreate], db: Session):
             results.append(schemas.AnalysisResult(
                 item_name=item.name,
                 charged_price=item.price,
-                benchmark_price=0.0, # Not found
+                benchmark_price=0.0,
                 difference=0.0,
                 is_overcharged=False
             ))

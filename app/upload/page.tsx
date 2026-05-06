@@ -36,6 +36,10 @@ async function callRealExtractAPI(file: File): Promise<AnalysisResult> {
       benchmark: Number(it.benchmark ?? 0),
       overcharge: Number(it.overcharge ?? 0),
       category: it.category ?? "Other",
+      quantity: Number(it.quantity ?? 1),
+      is_overcharged: Boolean(it.is_overcharged ?? false),
+      unit_price: Number(it.unit_price ?? 0),
+      benchmark_source: it.benchmark_source ?? "CGHS Database",
     }))
 
     return {

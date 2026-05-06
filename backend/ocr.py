@@ -19,133 +19,132 @@ def _get_gemini_key():
     return key
 
 
-def extract_bill_data_with_gemini(file_bytes: bytes, mime_type: str) -> dict:
-    """
-    Structured medical bill extraction with high-speed fallback.
-    """
-    import time
-    import google.generativeai as genai
+# ── Extraction prompt shared across models ──
+_EXTRACTION_PROMPT = """You are an expert medical bill auditor AI. Your job is to carefully read a hospital/medical bill image and extract ALL information from it accurately.
 
-    genai.configure(api_key=_get_gemini_key())
+CRITICAL INSTRUCTIONS:
+- Extract EVERY line item from the bill — medicines, diagnostics, room charges, doctor fees, nursing, procedures, consumables, ambulance, etc.
+- Do NOT skip any charge, even if the text is blurry or partially visible. Make your best interpretation.
+- Fix OCR errors using medical knowledge (e.g., "Paracetmol" -> "Paracetamol", "X-Ray Chst" -> "Chest X-Ray").
+- For prices, strip currency symbols (₹, Rs, INR) and extract the numeric value only.
+- If a field is truly not present in the bill, use null — do NOT fabricate data.
 
-    MODEL_CANDIDATES = [
-        "gemini-1.5-pro",
-        "gemini-1.5-flash",
-        "gemini-1.5-flash-latest"
-    ]
+ITEM CATEGORIES to use:
+- "Pharmacy" — medicines, tablets, injections, IV fluids, syrups, drops
+- "Diagnostics" — blood tests, urine tests, MRI, CT scan, X-ray, ultrasound, ECG, culture
+- "Room Charges" — room rent, ward charges, ICU charges, bed charges
+- "Consultation" — doctor consultation fee, specialist visit, surgeon fee, anesthesiologist
+- "Nursing" — nursing charges, nursing fee
+- "Procedures" — surgery, operation, dialysis, physiotherapy, dressing, suturing, nebulization
+- "Consumables" — gloves, syringes, cannula, bandages, masks
+- "Other" — ambulance, oxygen, ventilator, any unclassified charge
 
-    prompt = """You are an advanced medical bill auditing AI integrated with a PostgreSQL database containing CGHS and NPPA medicine pricing data.
-
-Your task is to:
-1. Process OCR-extracted text from medical bills.
-2. Clean and correct OCR errors intelligently.
-3. Extract structured and validated data.
-4. Match extracted medicines with database entries.
-5. Compare prices and detect overpricing accurately.
-
-----------------------------------------
-STRICT RULES:
-
-1. ACCURACY FIRST:
-- Carefully analyze OCR text (it may be noisy or incorrect)
-- Correct spelling using contextual understanding (e.g., "Paracetmol" -> "Paracetamol")
-
-2. DATA EXTRACTION:
-Extract:
-- Patient Name
-- Hospital/Pharmacy Name
-- Date
-- Medicines (name, quantity, unit price, total price)
-- Total Bill Amount
-- Contact Info (phone/email)
-
-3. DATABASE MATCHING:
-- Match medicine names with PostgreSQL database
-- Use fuzzy matching logic if exact match fails
-- Prefer generic names over brand names
-- Return matched database record ID
-
-4. PRICE VALIDATION:
-- Fetch CGHS and NPPA prices from database
-- Compare with extracted price
-- Classify:
-    - "Normal" (<= 10% variation)
-    - "Slightly High" (10-30%)
-    - "Overpriced" (> 30%)
-
-5. ERROR HANDLING:
-- If confidence is low, mark:
-  "uncertain": true
-- Do not hallucinate missing values
-
-6. OUTPUT FORMAT (STRICT JSON):
+OUTPUT FORMAT — Return ONLY this exact JSON structure, no markdown, no extra text:
 {
-  "patient_name": "",
-  "hospital_name": "",
-  "date": "",
-  "medicines": [
-    {
-      "ocr_name": "",
-      "matched_name": "",
-      "database_id": "",
-      "quantity": "",
-      "extracted_price": "",
-      "cghs_price": "",
-      "nppa_price": "",
-      "price_status": "",
-      "confidence": ""
-    }
-  ],
-  "total_amount": "",
+  "patient_name": "string or null",
+  "hospital_name": "string or null",
+  "bill_number": "string or null",
+  "date": "string or null",
+  "doctor_name": "string or null",
+  "ward": "string or null",
+  "total_amount": number or null,
   "contact": {
-    "phone": "",
-    "email": ""
-  }
+    "phone": "string or null",
+    "email": "string or null"
+  },
+  "items": [
+    {
+      "name": "Clean, corrected item name",
+      "ocr_name": "Raw name as seen on bill",
+      "category": "one of the categories above",
+      "quantity": number,
+      "charged_price": number,
+      "expected_price": number or null,
+      "cghs_price": number or null,
+      "nppa_price": number or null,
+      "price_status": "Normal | Slightly High | Overpriced | Unknown"
+    }
+  ]
 }
 
-7. ROBUSTNESS:
-- Handle broken lines, merged words, and OCR noise
-- Extract maximum correct information even if formatting is poor
+IMPORTANT NOTES:
+- "charged_price" is the unit price (per item/per day), NOT the total for that line.
+- "quantity" is how many units/days were charged. If not specified, use 1.
+- "expected_price" should be the CGHS or NPPA government benchmark price if you know it. Otherwise use null.
+- Extract ALL items — a typical hospital bill has 5-30 line items. Do not stop at just medicines.
+- If the bill has a table format (description | qty | rate | amount), extract each row as a separate item.
 
-----------------------------------------
-
-You are both:
-- A medical billing auditor
-- A data validation engine
-- A fuzzy matching system
-
-Return ONLY JSON without any markdown formatting.
+Return ONLY the JSON object. No explanation, no markdown code blocks.
 """
 
+
+def extract_bill_data_with_gemini(file_bytes: bytes, mime_type: str) -> dict:
+    """
+    Structured medical bill extraction using the new google-genai SDK.
+    Tries gemini-2.5-flash (fastest), then gemini-flash-latest as fallback.
+    """
+    import time
+    from google import genai
+    from google.genai import types
+
+    client = genai.Client(api_key=_get_gemini_key())
+
+    MODEL_CANDIDATES = [
+        "gemini-2.5-flash",
+        "gemini-flash-latest",
+    ]
+
     b64_data = base64.b64encode(file_bytes).decode("utf-8")
-    inline_data = {"inline_data": {"mime_type": mime_type, "data": b64_data}}
     last_error = None
 
-    for i, model_name in enumerate(MODEL_CANDIDATES):
+    for model_name in MODEL_CANDIDATES:
         print(f"[Gemini] Trying {model_name}...")
-        model = genai.GenerativeModel(model_name)
-        
-        # Reduced retries for speed; prefer switching models over waiting
-        for attempt in range(3): 
+
+        for attempt in range(4):
             try:
-                response = model.generate_content([prompt, inline_data])
-                if not response or not hasattr(response, 'text') or not response.text:
-                    break # try next model
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=[
+                        types.Content(
+                            role="user",
+                            parts=[
+                                types.Part.from_text(text=_EXTRACTION_PROMPT),
+                                types.Part.from_bytes(data=file_bytes, mime_type=mime_type),
+                            ],
+                        )
+                    ],
+                )
+
+                if not response or not response.text:
+                    print(f"[Gemini] {model_name} returned empty response, trying next...")
+                    break
 
                 raw = response.text.strip()
+                # Strip markdown code fences if present
                 raw = re.sub(r"^```(?:json)?\s*", "", raw)
                 raw = re.sub(r"\s*```$", "", raw)
-                return json.loads(raw)
+                parsed = json.loads(raw)
+                print(f"[Gemini] Successfully extracted data with {model_name}")
+                return parsed
+
+            except json.JSONDecodeError as e:
+                last_error = e
+                print(f"[Gemini] {model_name} returned invalid JSON: {str(e)[:80]}")
+                break  # try next model
 
             except Exception as e:
                 last_error = e
                 err_msg = str(e).lower()
-                print(f"[Gemini] {model_name} error: {err_msg[:100]}")
-                time.sleep(1) # brief pause
-                break # break retry loop, move to next model candidate
+                print(f"[Gemini] {model_name} attempt {attempt+1} error: {err_msg[:120]}")
+
+                if "rate" in err_msg or "quota" in err_msg or "429" in err_msg or "503" in err_msg or "unavailable" in err_msg:
+                    import time
+                    time.sleep(3)
+                    continue  # retry same model
+                break  # try next model
 
     if last_error:
-        raise RuntimeError(f"Gemini Extraction failed after trying all models: {last_error}")
+        raise RuntimeError(f"Gemini extraction failed after trying all models: {last_error}")
     raise RuntimeError("Extraction failed: No models returned valid data.")
 
 
@@ -243,11 +242,19 @@ def fallback_ocr(file_bytes: bytes, mime_type: str) -> dict:
                 # Extract trailing decimal price
                 last_token = re.sub(r'[^\d.]', '', last_token)
                 try:
-                    price = float(last_token)
+                    # Require that the price has a decimal point if it's very large, or it's a typical price format
+                    if '.' in parts[-1] or ',' in parts[-1]:
+                        price = float(last_token)
+                    else:
+                        # If it's a whole number, it might be a zip code if it's very large
+                        price = float(last_token)
+                        if price > 50000:
+                            continue
+
                     if 0 < price < 1000000:
                         name = " ".join(parts[:-1]).strip()
-                        # Filter out garbage noise or totals
-                        if len(name) > 3 and not re.search(r"(?i)total|amount|balance|due|paid|net", name):
+                        # Filter out garbage noise, totals, or obvious non-items
+                        if len(name) > 3 and not re.search(r"(?i)total|amount|balance|due|paid|net|telangana|hyderabad|colony|road|ph:|phone", name):
                             # Analyze name to assign category intelligently
                             category = "Other"
                             if re.search(r"(?i)test|profile|scan|x-ray|mri|ct|usg|blood", name):
